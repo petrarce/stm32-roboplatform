@@ -1,0 +1,6 @@
+Debug/*
+*.uv*
+Debug*
+*.scvd
+*.s
+*.txt
