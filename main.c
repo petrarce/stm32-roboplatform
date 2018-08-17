@@ -39,6 +39,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "drivers/engine/engine_driver_api.h"
 
 #ifdef _RTE_
 #include "RTE_Components.h"             // Component selection
@@ -79,32 +80,16 @@ uint32_t HAL_GetTick (void) {
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
-#define GPIOA_SetPin4()  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET)
-#define GPIOA_ResetPin4()  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET)
-#define GPIOA_SetPin5()  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET)
-#define GPIOA_ResetPin5()  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET)
-#define GPIOA_SetPin6()  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_SET)
-#define GPIOA_ResetPin6()  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET)
-#define GPIOA_SetPin0()  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET)
-#define GPIOA_ResetPin0()  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET)
-#define GPIOA_SetPin3()  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET)
-#define GPIOA_ResetPin3()  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET)
-#define GPIOA_SetPin2()  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET)
-#define GPIOA_ResetPin2()  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET)
-
-
-
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
-static void MAIN_Init_GPIO(void);
-
 /* Private functions ---------------------------------------------------------*/
 /**
   * @brief  Main program
   * @param  None
   * @retval None
   */
+
 int main(void)
 {
 
@@ -118,31 +103,20 @@ int main(void)
        - Low Level Initialization
      */
   HAL_Init();
-  MAIN_Init_GPIO();
-
-	GPIOA_ResetPin5();
-	GPIOA_SetPin6();
-	GPIOA_ResetPin2();
-	GPIOA_SetPin3();
-  while(1){
-		  GPIOA_SetPin4();
-			GPIOA_SetPin0();
-		  for(unsigned long long int i = 0; i < 10000; i++);
-			GPIOA_ResetPin4();
-			GPIOA_ResetPin0();
-		  for(unsigned long long int i = 0; i < 10000; i++);
-  }
-
-}
-
-static void MAIN_Init_GPIO()
-{
-  GPIO_InitTypeDef GPIO_InitStructure;
-
-  __GPIOA_CLK_ENABLE();
-  GPIO_InitStructure.Pin   = GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_0 | GPIO_PIN_3 | GPIO_PIN_2;
-  GPIO_InitStructure.Mode  = GPIO_MODE_OUTPUT_PP;    
-  GPIO_InitStructure.Pull  = GPIO_PULLUP;
-  GPIO_InitStructure.Speed = GPIO_SPEED_HIGH;  
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStructure);    
+	ENGINE_init_driver();
+	
+	while(1){
+			ENGINE_run_forvard_sm(0.4);
+		  HAL_Delay(5000);
+			ENGINE_stop();
+			HAL_Delay(5000);
+			ENGINE_run_backvard_sm(0.4);
+			HAL_Delay(5000);
+			ENGINE_stop();
+			HAL_Delay(5000);
+			ENGINE_rotate_clockvice();
+			HAL_Delay(5000);
+			ENGINE_rotate_unticlockvice();
+			HAL_Delay(5000);
+	}
 }
