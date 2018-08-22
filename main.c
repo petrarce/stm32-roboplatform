@@ -39,7 +39,8 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "drivers/engine/engine_driver_api.h"
+#include "devices/engine/engine_driver_api.h"
+#include "devices/usart/usart_if.h"
 
 #ifdef _RTE_
 #include "RTE_Components.h"             // Component selection
@@ -90,6 +91,25 @@ uint32_t HAL_GetTick (void) {
   * @retval None
   */
 
+/******************************************************************************/
+/*                 STM32F4xx Peripherals Interrupt Handlers                   */
+/*  Add here the Interrupt Handler for the used peripheral(s) (PPP), for the  */
+/*  available peripheral interrupt handler's name please refer to the startup */
+/*  file (startup_stm32f4xx.s).                                               */
+/******************************************************************************/
+/**
+  * @brief  This function handles UART interrupt request.  
+  * @param  None
+  * @retval None
+  * @Note   This function is redefined in "main.h" and related to DMA stream 
+  *         used for USART data transmission     
+  */
+
+
+
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+
+
 int main(void)
 {
 
@@ -102,21 +122,17 @@ int main(void)
              handled in milliseconds basis.
        - Low Level Initialization
      */
+	volatile HAL_StatusTypeDef  status;
+
+	
   HAL_Init();
 	ENGINE_init_driver();
+	UART_Init(&UartHandle);
 	
 	while(1){
-			ENGINE_run_forvard_sm(0.4);
-		  HAL_Delay(5000);
-			ENGINE_stop();
-			HAL_Delay(5000);
-			ENGINE_run_backvard_sm(0.4);
-			HAL_Delay(5000);
-			ENGINE_stop();
-			HAL_Delay(5000);
-			ENGINE_rotate_clockvice();
-			HAL_Delay(5000);
-			ENGINE_rotate_unticlockvice();
-			HAL_Delay(5000);
+		//status = HAL_UART_Transmit(&UartHandle, (uint8_t*)"Hello\r\n", sizeof("Hello\r\n"),1000);
+		//status = HAL_UART_Transmit_IT(&UartHandle, (uint8_t*)"Hello withh IT\r\n", sizeof("Hello withh IT\r\n"));
+		HAL_Delay(1000);
 	}
 }
+

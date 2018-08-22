@@ -56,8 +56,11 @@ GPIO_InitTypeDef GPIO_InitStructure;
 
 TIM_HandleTypeDef hTim1, hTim3;
 TIM_OC_InitTypeDef sConfigOC;
+/*TODO: need to make all functions threadsafe*/
+static void ENGINE_timer_tnit(void) 
+{
+		volatile HAL_StatusTypeDef  status;
 
-static void ENGINE_timer_tnit(void) {
 		//ENABLE Timer 1 for engines 1 and 2
 		__TIM1_CLK_ENABLE();
     hTim1.Instance = TIM1;
@@ -65,7 +68,7 @@ static void ENGINE_timer_tnit(void) {
     hTim1.Init.CounterMode = TIM_COUNTERMODE_UP;
     hTim1.Init.Period = TIMERS_PERIOD;
     hTim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-    HAL_TIM_PWM_Init(&hTim1);
+    status = HAL_TIM_PWM_Init(&hTim1);
 	
 	  sConfigOC.OCMode = TIM_OCMODE_PWM1;
     sConfigOC.OCIdleState = TIM_OCIDLESTATE_SET;
@@ -192,8 +195,15 @@ void ENGINE_run_backvard_sm(float speed)
 
 }
 
-void ENGINE_run_backvard(){}
-	
+void ENGINE_run_backvard()
+{
+	ENGINE_LEFT_TRANSMITION_STOP();
+	ENGINE_RIGHT_TRANSMITION_STOP();
+	ENGINE_timers_pulse_width(TIMERS_MAX_PULS_WIDTH);
+	ENGINE_LEFT_TRANSMITION_BW();
+	ENGINE_RIGHT_TRANSMITION_BW();
+
+}
 void ENGINE_stop()
 {
 	ENGINE_LEFT_TRANSMITION_STOP();
