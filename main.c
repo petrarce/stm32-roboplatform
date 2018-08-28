@@ -41,74 +41,16 @@
 #include "main.h"
 #include "devices/engine/engine_driver_api.h"
 #include "devices/usart/usart_if.h"
+#include "common/msg-srv/msg_srv.h"
 
-#ifdef _RTE_
-#include "RTE_Components.h"             // Component selection
-#endif
-#ifdef RTE_CMSIS_RTOS2                  // when RTE component CMSIS RTOS2 is used
-#include "cmsis_os2.h"                  // ::CMSIS:RTOS2
-#endif
+//**********************************FREERTOS HEADERS****************************
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "task.h"
+#include "croutine.h"
+//******************************************************************************
 
-#ifdef RTE_CMSIS_RTOS2_RTX5
-/**
-  * Override default HAL_GetTick function
-  */
-uint32_t HAL_GetTick (void) {
-  static uint32_t ticks = 0U;
-         uint32_t i;
-
-  if (osKernelGetState () == osKernelRunning) {
-    return ((uint32_t)osKernelGetTickCount ());
-  }
-
-  /* If Kernel is not running wait approximately 1 ms then increment 
-     and return auxiliary tick counter value */
-  for (i = (SystemCoreClock >> 14U); i > 0U; i--) {
-    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); __NOP();
-    __NOP(); __NOP(); __NOP(); __NOP(); __NOP(); __NOP();
-  }
-  return ++ticks;
-}
-#endif
-
-/** @addtogroup STM32F4xx_HAL_Examples
-  * @{
-  */
-
-/** @addtogroup Templates
-  * @{
-  */
-
-/* Private typedef -----------------------------------------------------------*/
-/* Private define ------------------------------------------------------------*/
-/* Private macro -------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
-/* Private function prototypes -----------------------------------------------*/
-/* Private functions ---------------------------------------------------------*/
-/**
-  * @brief  Main program
-  * @param  None
-  * @retval None
-  */
-
-/******************************************************************************/
-/*                 STM32F4xx Peripherals Interrupt Handlers                   */
-/*  Add here the Interrupt Handler for the used peripheral(s) (PPP), for the  */
-/*  available peripheral interrupt handler's name please refer to the startup */
-/*  file (startup_stm32f4xx.s).                                               */
-/******************************************************************************/
-/**
-  * @brief  This function handles UART interrupt request.  
-  * @param  None
-  * @retval None
-  * @Note   This function is redefined in "main.h" and related to DMA stream 
-  *         used for USART data transmission     
-  */
-
-
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
-
+uint8_t prioBits;
 
 int main(void)
 {
@@ -126,13 +68,23 @@ int main(void)
 
 	
   HAL_Init();
-	ENGINE_init_driver();
-	UART_Init(&UartHandle);
 	
-	while(1){
-		//status = HAL_UART_Transmit(&UartHandle, (uint8_t*)"Hello\r\n", sizeof("Hello\r\n"),1000);
-		//status = HAL_UART_Transmit_IT(&UartHandle, (uint8_t*)"Hello withh IT\r\n", sizeof("Hello withh IT\r\n"));
-		HAL_Delay(1000);
-	}
-}
+  /*It is recommended to assign all the priority bits to be preempt priority bits, 
+	leaving no priority bits as subpriority bits. Any other configuration complicates 
+	the otherwise direct relationship between the configMAX_SYSCALL_INTERRUPT_PRIORITY 
+	setting and the priority assigned to individual 
+	peripheral interrupts.*/
+ 	HAL_NVIC_SetPriorityGrouping( NVIC_PRIORITYGROUP_4 );
 
+	//devices initialisation section
+	UART_Init(&UartHandle);
+	ENGINE_init_driver();
+
+	//common components initialisation section
+	MSGSRV_init();
+		
+	
+	vTaskStartScheduler();
+
+	while(1){}
+}

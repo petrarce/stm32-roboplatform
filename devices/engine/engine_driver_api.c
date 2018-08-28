@@ -153,10 +153,49 @@ static void ENGINE_timers_pulse_width(uint16_t pulse)
 
 }
 
+void ENGINE_msgsrv_hook(void* arg){
+	char* cmd = (char*) arg;
+	
+	switch(cmd[0]){
+		case 'f':
+			ENGINE_run_forvard_sm(0.5);
+			UART_printf("ENGINE: run forevard\r\n");
+			break;
+		case 'b':
+			ENGINE_run_backvard_sm(0.5);
+			UART_printf("ENGINE: run backward\r\n");
+			break;
+		case 'l':
+			ENGINE_rotate_unticlockvice();
+			UART_printf("ENGINE: run left\r\n");
+			break;
+		case 'r':
+			ENGINE_rotate_clockvice();
+			UART_printf("ENGINE: turn right\r\n");
+			break;
+		case 's':
+			ENGINE_stop();
+			UART_printf("ENGINE: stop\r\n");
+			break;
+		default:
+			UART_printf("ENGINE: no such command for engine\r\n");
+			break;
+	}
+}
+
 void ENGINE_init_driver()
 {
+	MSGSRV_Status ret;
 	ENGINE_gpio_init();
 	ENGINE_timer_tnit();
+	ret = MSGSRV_register_client(MSGSRV_ENGINE_CLNT, ENGINE_msgsrv_hook);
+	if(ret != MSGSRV_OK){
+		UART_printf("ERROR: failed to initialise engine driver - MSGSRV failure\r\n");
+		return;
+	}
+	
+	UART_printf("Engine driver initialisation succeed\r\n");
+	
 }
 
 void ENGINE_run_forvard_sm(float speed)

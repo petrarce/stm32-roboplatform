@@ -1,0 +1,29 @@
+#ifndef MSG_SRV_H
+#define MSG_SRV_H
+
+#include "stdint.h"
+
+#define MSGSRV_MAX_CLIENTS 		10
+#define MSGSRV_MAX_MESSAGES 	100
+#define MSGSRV_MAX_MSG_SIZE 	100
+
+typedef enum {
+	MSGSRV_OK,
+	MSGSRV_NOK,
+	MSGSRV_REG_FAILED, 		//registration of client failed
+	MSGSRV_UNREG_FAILED, 	//unregister of client failed
+	MSGSRC_QUEUE_FULL, 		//message queue is full
+} MSGSRV_Status;
+
+typedef void (*MSGSRV_client_hook_t)(void*);
+typedef struct {
+	uint8_t targetId;
+	void* msg;
+} MSGSRV_req;
+
+MSGSRV_Status MSGSRV_init();
+MSGSRV_Status MSGSRV_send(uint8_t targetId, void* msg);
+MSGSRV_Status MSGSRV_register_client(uint8_t, MSGSRV_client_hook_t);
+MSGSRV_Status MSGSRV_unregister_client(uint8_t);
+
+#endif

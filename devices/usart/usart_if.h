@@ -1,7 +1,8 @@
 #ifndef USART_IF_H
 #define USART_IF_H
 
-#include "../../main.h"
+#include "stm32f4xx_hal.h"
+
 
 #define UARTx USART2
 #define UART_TO 1000  //uart receive/transmit timeout

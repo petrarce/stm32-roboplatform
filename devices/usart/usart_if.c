@@ -1,10 +1,15 @@
-#include "usart_if.h"
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
+#include <FreeRTOS.h>
+#include "usart_if.h"
+#include "../../common/msg-srv/msg_srv.h"
 
 UART_HandleTypeDef UartHandle;
 UART_BufStr uart2_gl_buf;
 char usart2_lc_buf[1];
+char tmp_msg[10];
+
 
 //local functions and varicables
 static void UART_clear_buf()
@@ -46,6 +51,7 @@ void UART_Init(UART_HandleTypeDef* UartHandle)
 	
 	//configure UART
 	__HAL_UART_ENABLE_IT(UartHandle, UART_IT_RXNE);
+	__HAL_UART_ENABLE_IT(UartHandle, UART_IT_TC);
 	
 	UartHandle->Instance        = UARTx;
 	UartHandle->Init.BaudRate   = UART_BDR;
@@ -57,7 +63,8 @@ void UART_Init(UART_HandleTypeDef* UartHandle)
 	HAL_UART_Init(UartHandle);	
 	
 	//configure NVIC priority
-	HAL_NVIC_SetPriority(USART2_IRQn, 0, 1);
+	uint8_t prio = configMAX_SYSCALL_INTERRUPT_PRIORITY+1;
+	HAL_NVIC_SetPriority(USART2_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY, 0);
 	HAL_NVIC_EnableIRQ(USART2_IRQn);
 	
 	UART_clear_buf();
@@ -77,6 +84,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
 		
 		case '<': 
 			//end of transmittion. Need to put message into a global queue
+			memcpy(tmp_msg, uart2_gl_buf.buf, sizeof(uart2_gl_buf.buf));
+			MSGSRV_send(MSGSRV_ENGINE_CLNT, tmp_msg);
 			UART_clear_buf();
 			break;
 		

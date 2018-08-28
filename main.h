@@ -38,19 +38,7 @@
 #define __MAIN_H
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f4xx_hal.h"
-#include "cmsis_os2.h"                  // ::CMSIS:RTOS2
-
-/* Exported types ------------------------------------------------------------*/
-/* Exported constants --------------------------------------------------------*/
-extern uint64_t app_main_stk[];
-extern const osThreadAttr_t app_main_attr;
-
-/* Exported macro ------------------------------------------------------------*/
-
-
-/* Exported functions ------------------------------------------------------- */
-extern void app_main (void *arg);
+#include "stm32f4xx.h"
 
 #endif /* __MAIN_H */
 
