@@ -1,0 +1,7 @@
+Create robot which will make 5 commands						:::done
+Add communication with PC over WIFI through RPI 				:::done
+Make GUI application, which over which it will be easely to controll robot
+Create defending corps for robot
+Add compas ad accelerometer to the system
+Add PID regulator to controll position of robot
+Add camera to collect traffic and send it to PC
