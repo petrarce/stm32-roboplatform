@@ -7,7 +7,7 @@
 
 UART_HandleTypeDef UartHandle;
 UART_BufStr uart2_gl_buf;
-char usart2_lc_buf[1];
+static char usart2_lc_buf[1];
 char tmp_msg[10];
 
 
@@ -26,6 +26,24 @@ static UART_OpCode UART_push_buf(char* str, int size)
 	memcpy(uart2_gl_buf.buf + uart2_gl_buf.bufPos, str, size);
 	uart2_gl_buf.bufPos += size;
 	return UART_OK;
+}
+
+static int8_t  parseInput(char* str, uint8_t strsize)
+{
+	char dest = str[0];
+	char* tokstr;
+	tokstr = strtok(str, "~");
+	tokstr = strtok(NULL, "~");
+	strcpy(str, tokstr);
+	memset(str + strlen(str), 0, strsize - strlen(str));
+	switch(dest){
+		case 'e':
+			return MSGSRV_ENGINE_CLNT;
+		case 'a':
+			return MSGSRV_MPU6050_CLNT;
+		default:
+			return -1;			
+	}	
 }
 
 //global uart apis
@@ -63,7 +81,6 @@ void UART_Init(UART_HandleTypeDef* UartHandle)
 	HAL_UART_Init(UartHandle);	
 	
 	//configure NVIC priority
-	uint8_t prio = configMAX_SYSCALL_INTERRUPT_PRIORITY+1;
 	HAL_NVIC_SetPriority(USART2_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY, 0);
 	HAL_NVIC_EnableIRQ(USART2_IRQn);
 	
@@ -79,13 +96,15 @@ HAL_StatusTypeDef UART_printf(char* str)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
 {
+	int8_t client;
   /* Turn LED1 on: Transfer in transmission process is correct */
 	switch(usart2_lc_buf[0]){
 		
 		case '<': 
 			//end of transmittion. Need to put message into a global queue
+			client = parseInput(uart2_gl_buf.buf, sizeof(uart2_gl_buf.buf));
 			memcpy(tmp_msg, uart2_gl_buf.buf, sizeof(uart2_gl_buf.buf));
-			MSGSRV_send(MSGSRV_ENGINE_CLNT, tmp_msg);
+			MSGSRV_send(client, tmp_msg);
 			UART_clear_buf();
 			break;
 		

@@ -28,12 +28,14 @@ typedef struct {
 
 enum MSGSRV_CLNT_LIST{
 	MSGSRV_UART_CLNT,
-	MSGSRV_ENGINE_CLNT
+	MSGSRV_ENGINE_CLNT,
+	MSGSRV_MPU6050_CLNT
 };
 
 MSGSRV_Status MSGSRV_init(void);
 MSGSRV_Status MSGSRV_send(uint8_t targetId, void* msg);
 MSGSRV_Status MSGSRV_register_client(uint8_t, MSGSRV_client_hook_t);
 MSGSRV_Status MSGSRV_unregister_client(uint8_t);
+void MSGSRV_main(void* args);
 
 #endif

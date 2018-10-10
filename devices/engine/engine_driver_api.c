@@ -1,4 +1,15 @@
 #include "engine_driver_api.h"
+#include <string.h>
+#include "debug.h"
+
+
+//**********************************FREERTOS HEADERS****************************
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "task.h"
+#include "croutine.h"
+//******************************************************************************
+
 
 /*Current engine is aimed to work with L298N step engine driver. 
 	STM32F407VG layout for driver:
@@ -13,20 +24,20 @@
 /*private defines*/
 #define ENGINE_RIGHT_TRANSMITION_FW() \
 	do{ \
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET); \
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_RESET); \
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_SET); \
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET); \
 	}while(0)
 
 #define ENGINE_RIGHT_TRANSMITION_BW() \
 	do{ \
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET); \
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_SET); \
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_RESET); \
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET); \
 	}while(0)
 
 #define ENGINE_RIGHT_TRANSMITION_STOP() \
 	do{ \
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET); \
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_RESET); \
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET); \
 	}while(0)
 
 	
@@ -51,11 +62,15 @@
 
 
 
+//local resources 
+static GPIO_InitTypeDef GPIO_InitStructure;
+static TIM_HandleTypeDef hTim1, hTim3;
+static TIM_OC_InitTypeDef sConfigOC;
 
-GPIO_InitTypeDef GPIO_InitStructure;
-
-TIM_HandleTypeDef hTim1, hTim3;
-TIM_OC_InitTypeDef sConfigOC;
+//Freertos global variables
+static TaskHandle_t mainThreadHandle;
+static char mainThreadBuf[64];
+	
 /*TODO: need to make all functions threadsafe*/
 static void ENGINE_timer_tnit(void) 
 {
@@ -153,10 +168,119 @@ static void ENGINE_timers_pulse_width(uint16_t pulse)
 
 }
 
-void ENGINE_msgsrv_hook(void* arg){
-	char* cmd = (char*) arg;
+
+static void ENGINE_run_forvard_sm(float speed)
+{
+	float local_speed = 0.5;
+	if(speed <= 1 && speed > 0)
+		local_speed = speed;
+	ENGINE_LEFT_TRANSMITION_STOP();
+	ENGINE_RIGHT_TRANSMITION_STOP();
+	ENGINE_timers_pulse_width(local_speed * TIMERS_MAX_PULS_WIDTH);
+	ENGINE_LEFT_TRANSMITION_FW();
+	ENGINE_RIGHT_TRANSMITION_FW();
+
+}
+
+static void ENGINE_run_forvard()
+{
+	ENGINE_LEFT_TRANSMITION_STOP();
+	ENGINE_RIGHT_TRANSMITION_STOP();
+	ENGINE_timers_pulse_width(TIMERS_MAX_PULS_WIDTH);
+	ENGINE_LEFT_TRANSMITION_FW();
+	ENGINE_RIGHT_TRANSMITION_FW();
+
+}
 	
-	switch(cmd[0]){
+static void ENGINE_run_backvard_sm(float speed)
+{
+	float local_speed = 1;
+	if(speed > 0 && speed <= 1)
+		local_speed = speed;
+	ENGINE_LEFT_TRANSMITION_STOP();
+	ENGINE_RIGHT_TRANSMITION_STOP();
+	ENGINE_timers_pulse_width(local_speed * TIMERS_MAX_PULS_WIDTH);
+	ENGINE_LEFT_TRANSMITION_BW();
+	ENGINE_RIGHT_TRANSMITION_BW();
+
+}
+
+static void ENGINE_run_backvard()
+{
+	ENGINE_LEFT_TRANSMITION_STOP();
+	ENGINE_RIGHT_TRANSMITION_STOP();
+	ENGINE_timers_pulse_width(TIMERS_MAX_PULS_WIDTH);
+	ENGINE_LEFT_TRANSMITION_BW();
+	ENGINE_RIGHT_TRANSMITION_BW();
+
+}
+static void ENGINE_stop()
+{
+	ENGINE_LEFT_TRANSMITION_STOP();
+	ENGINE_RIGHT_TRANSMITION_STOP();
+}
+
+static void ENGINE_rotate_clockvice_ang(uint32_t angle)
+{
+  /*run ENGINE_rotate_clockvice*/
+	/*check rotation angle*/
+	/*if angle reached - stop rotation by calling ENGINE_stop*/
+}
+
+static void ENGINE_rotate_clockvice()
+{
+	ENGINE_LEFT_TRANSMITION_FW();
+	ENGINE_RIGHT_TRANSMITION_BW();
+}
+	
+static void ENGINE_rotate_unticlockvice_ang(uint32_t angle)
+{
+	/*run ENGINE_rotate_unticlockvice*/
+	/*check rotation angle*/
+	/*if angle reached - stop rotation by calling ENGINE_stop*/
+
+}
+
+static void ENGINE_rotate_unticlockvice()
+{
+	ENGINE_LEFT_TRANSMITION_BW();
+	ENGINE_RIGHT_TRANSMITION_FW();
+
+}
+
+static void ENGINE_msgsrv_hook(void* arg)
+{
+	char* local = (char*) arg;
+		if(strlen(local) > sizeof(mainThreadBuf))
+			local[sizeof(mainThreadBuf) - 1] = 0;
+	strcpy(mainThreadBuf, arg);
+	xTaskNotifyGive(mainThreadHandle);
+}
+
+void ENGINE_init_driver()
+{
+	MSGSRV_Status ret;
+	ENGINE_gpio_init();
+	ENGINE_timer_tnit();
+	ret = MSGSRV_register_client(MSGSRV_ENGINE_CLNT, ENGINE_msgsrv_hook);
+	if(ret != MSGSRV_OK){
+		UART_printf("ERROR: failed to initialise engine driver - MSGSRV failure\r\n");
+		return;
+	}
+	
+	UART_printf("Engine driver initialisation succeed\r\n");
+	
+}
+
+void ENGINE_main(void* args)
+{
+	mainThreadHandle = xTaskGetCurrentTaskHandle();
+	
+	while(1)
+	{
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+		switch(mainThreadBuf[0]){
 		case 'f':
 			ENGINE_run_forvard_sm(0.5);
 			UART_printf("ENGINE: run forevard\r\n");
@@ -180,99 +304,8 @@ void ENGINE_msgsrv_hook(void* arg){
 		default:
 			UART_printf("ENGINE: no such command for engine\r\n");
 			break;
+		}
+		uxTaskGetSystemState(pxTaskStatusArray, sizeof(pxTaskStatusArray), NULL);
+		
 	}
-}
-
-void ENGINE_init_driver()
-{
-	MSGSRV_Status ret;
-	ENGINE_gpio_init();
-	ENGINE_timer_tnit();
-	ret = MSGSRV_register_client(MSGSRV_ENGINE_CLNT, ENGINE_msgsrv_hook);
-	if(ret != MSGSRV_OK){
-		UART_printf("ERROR: failed to initialise engine driver - MSGSRV failure\r\n");
-		return;
-	}
-	
-	UART_printf("Engine driver initialisation succeed\r\n");
-	
-}
-
-void ENGINE_run_forvard_sm(float speed)
-{
-	float local_speed = 1;
-	if(speed > 0 && speed <= 1)
-		local_speed = speed;
-	ENGINE_LEFT_TRANSMITION_STOP();
-	ENGINE_RIGHT_TRANSMITION_STOP();
-	ENGINE_timers_pulse_width(local_speed * TIMERS_MAX_PULS_WIDTH);
-	ENGINE_LEFT_TRANSMITION_FW();
-	ENGINE_RIGHT_TRANSMITION_FW();
-
-}
-
-void ENGINE_run_forvard()
-{
-	ENGINE_LEFT_TRANSMITION_STOP();
-	ENGINE_RIGHT_TRANSMITION_STOP();
-	ENGINE_timers_pulse_width(TIMERS_MAX_PULS_WIDTH);
-	ENGINE_LEFT_TRANSMITION_FW();
-	ENGINE_RIGHT_TRANSMITION_FW();
-
-}
-	
-void ENGINE_run_backvard_sm(float speed)
-{
-	float local_speed = 1;
-	if(speed > 0 && speed <= 1)
-		local_speed = speed;
-	ENGINE_LEFT_TRANSMITION_STOP();
-	ENGINE_RIGHT_TRANSMITION_STOP();
-	ENGINE_timers_pulse_width(local_speed * TIMERS_MAX_PULS_WIDTH);
-	ENGINE_LEFT_TRANSMITION_BW();
-	ENGINE_RIGHT_TRANSMITION_BW();
-
-}
-
-void ENGINE_run_backvard()
-{
-	ENGINE_LEFT_TRANSMITION_STOP();
-	ENGINE_RIGHT_TRANSMITION_STOP();
-	ENGINE_timers_pulse_width(TIMERS_MAX_PULS_WIDTH);
-	ENGINE_LEFT_TRANSMITION_BW();
-	ENGINE_RIGHT_TRANSMITION_BW();
-
-}
-void ENGINE_stop()
-{
-	ENGINE_LEFT_TRANSMITION_STOP();
-	ENGINE_RIGHT_TRANSMITION_STOP();
-}
-
-void ENGINE_rotate_clockvice_ang(uint32_t angle)
-{
-  /*run ENGINE_rotate_clockvice*/
-	/*check rotation angle*/
-	/*if angle reached - stop rotation by calling ENGINE_stop*/
-}
-
-void ENGINE_rotate_clockvice()
-{
-	ENGINE_LEFT_TRANSMITION_FW();
-	ENGINE_RIGHT_TRANSMITION_BW();
-}
-	
-void ENGINE_rotate_unticlockvice_ang(uint32_t angle)
-{
-	/*run ENGINE_rotate_unticlockvice*/
-	/*check rotation angle*/
-	/*if angle reached - stop rotation by calling ENGINE_stop*/
-
-}
-
-void ENGINE_rotate_unticlockvice()
-{
-	ENGINE_LEFT_TRANSMITION_BW();
-	ENGINE_RIGHT_TRANSMITION_FW();
-
 }

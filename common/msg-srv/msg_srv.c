@@ -24,10 +24,6 @@ MSGSRV_Status MSGSRV_init()
 	if(!MSGSRV_queue)
 		return MSGSRV_QUEUE_ALLOC_FAILED;
 	
-	//create new thread
-	xTaskCreate( MSGSRV_main, "MSGSRV main thread", 
-	STACK_SIZE_MIN, NULL, tskIDLE_PRIORITY, NULL );
-
 	return MSGSRV_OK;
 	
 }

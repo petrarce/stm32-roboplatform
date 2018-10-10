@@ -38,9 +38,15 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
+#include <string.h>
+#include <stdio.h>
+#include "debug.h"
 #include "main.h"
 #include "devices/engine/engine_driver_api.h"
 #include "devices/usart/usart_if.h"
+#include "devices/accelerometer/tm_stm32f4_lis302dl_lis3dsh.h"
+#include "devices/i2c/i2c_if.h"
+#include "devices/mpu6050/sd_hal_mpu6050.h"
 #include "common/msg-srv/msg_srv.h"
 
 //**********************************FREERTOS HEADERS****************************
@@ -50,7 +56,11 @@
 #include "croutine.h"
 //******************************************************************************
 
-uint8_t prioBits;
+
+TaskStatus_t		pxTaskStatusArray[configTASKS_COUNT];
+uint32_t				totalRunTime;
+
+
 
 int main(void)
 {
@@ -64,10 +74,10 @@ int main(void)
              handled in milliseconds basis.
        - Low Level Initialization
      */
-	volatile HAL_StatusTypeDef  status;
 
 	
   HAL_Init();
+	
 	
   /*It is recommended to assign all the priority bits to be preempt priority bits, 
 	leaving no priority bits as subpriority bits. Any other configuration complicates 
@@ -79,12 +89,41 @@ int main(void)
 	//devices initialisation section
 	UART_Init(&UartHandle);
 	ENGINE_init_driver();
-
+	I2C2_Init();
 	//common components initialisation section
 	MSGSRV_init();
-		
 	
+	//create new threads
+	xTaskCreate( MSGSRV_main, 				"MSGSRV", 		configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
+	xTaskCreate( ENGINE_main, 				"ENGINE", 		configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
+	xTaskCreate( MPU6050_main_thread,	"MPU6050", 		configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
+	xTaskCreate( MPU6050_poll_thread,	"MPU6050", 		configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
+
+		
 	vTaskStartScheduler();
 
 	while(1){}
+}
+
+void vApplicationStackOverflowHook( TaskHandle_t xTask,
+                                    signed char *pcTaskName )
+																		
+{
+	UART_printf("FATAL: stack overflow hook is started");
+	uxTaskGetSystemState(pxTaskStatusArray, sizeof(pxTaskStatusArray), NULL);
+	while(1){}
+}
+
+void vApplicationMallocFailedHook( TaskHandle_t xTask,
+                                    signed char *pcTaskName )
+{
+		UART_printf("FATAL: malloc failed hook entered");
+		uxTaskGetSystemState(pxTaskStatusArray, sizeof(pxTaskStatusArray), NULL);
+		while(1){}
+																		
+}
+
+void vApplicationIdleHook()
+{
+			uxTaskGetSystemState(pxTaskStatusArray, sizeof(pxTaskStatusArray), NULL);
 }
